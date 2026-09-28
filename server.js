@@ -19,6 +19,13 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const http = require('http');
+
+try {
+  if (typeof process.loadEnvFile === 'function') {
+    process.loadEnvFile();
+  }
+} catch (e) {}
+
 // child_process/execFile is intentionally NOT imported: no student-submitted
 // code is ever run with this process's own privileges (see the code-runner
 // section further down, which routes every language through Judge0).
@@ -32,7 +39,16 @@ const multer = require('multer');
 // same API, just the versions that actually fix the prototype-pollution and
 // ReDoS CVEs that affected the old package.
 const XLSX = require('@e965/xlsx');
-const { MongoClient, GridFSBucket, ObjectId } = require('mongodb');
+
+const SUPABASE_DB_URL = process.env.SUPABASE_DB_URL;
+let MongoClient, GridFSBucket, ObjectId;
+if (SUPABASE_DB_URL) {
+  console.log('[Database] Connecting to Supabase PostgreSQL database...');
+  ({ MongoClient, GridFSBucket, ObjectId } = require('./services/supabaseMongoAdapter'));
+} else {
+  ({ MongoClient, GridFSBucket, ObjectId } = require('mongodb'));
+}
+
 const webpush = require('web-push'); // Real Web Push Protocol (RFC 8030) + VAPID — no third-party push provider or account needed
 const { WebSocketServer } = require('ws'); // NEW: WebRTC signalling channel for Test Monitoring → View Live
 const { COURSE: PY_COURSE, TOTAL_LESSONS: PY_COURSE_TOTAL_LESSONS } = require('./pythonCourseData'); // NEW: Python Full Course content (static data, no DB)
@@ -301,25 +317,27 @@ async function main() {
   // fired and returned an opaque 504 to the browser. These bounds make
   // every DB call fail fast with a real error instead, which ah() below
   // turns into an immediate, meaningful JSON error response.
-  const client = new MongoClient(MONGODB_URI, {
-    maxPoolSize: 50,
-    minPoolSize: 5,
-    // How long a request will wait for a connection to free up in the
-    // pool before giving up, instead of queuing forever behind a storm of
-    // concurrent polling requests.
-    waitQueueTimeoutMS: 8000,
-    // How long to wait to find a usable MongoDB server before failing.
-    serverSelectionTimeoutMS: 8000,
-    // How long an individual socket operation (a single query) may run
-    // before the driver kills it and surfaces an error instead of hanging
-    // forever. 30s is generous enough to not risk cutting off legitimately
-    // heavier, unrelated operations elsewhere in this app (large
-    // analytics/report aggregations, bulk imports) — the Competition
-    // routes this bug report is actually about are cheap, fast, small
-    // JSON reads/writes with no legitimate reason to ever approach that.
-    socketTimeoutMS: 30000,
-    connectTimeoutMS: 10000,
-  });
+  const client = SUPABASE_DB_URL
+    ? new MongoClient(SUPABASE_DB_URL)
+    : new MongoClient(MONGODB_URI, {
+        maxPoolSize: 50,
+        minPoolSize: 5,
+        // How long a request will wait for a connection to free up in the
+        // pool before giving up, instead of queuing forever behind a storm of
+        // concurrent polling requests.
+        waitQueueTimeoutMS: 8000,
+        // How long to wait to find a usable MongoDB server before failing.
+        serverSelectionTimeoutMS: 8000,
+        // How long an individual socket operation (a single query) may run
+        // before the driver kills it and surfaces an error instead of hanging
+        // forever. 30s is generous enough to not risk cutting off legitimately
+        // heavier, unrelated operations elsewhere in this app (large
+        // analytics/report aggregations, bulk imports) — the Competition
+        // routes this bug report is actually about are cheap, fast, small
+        // JSON reads/writes with no legitimate reason to ever approach that.
+        socketTimeoutMS: 30000,
+        connectTimeoutMS: 10000,
+      });
   await client.connect();
   const db = client.db();
   const noteBucket = new GridFSBucket(db, { bucketName: 'note_files' });

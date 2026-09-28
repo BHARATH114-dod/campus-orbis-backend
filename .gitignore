@@ -1,0 +1,5 @@
+node_modules/
+.env
+vapid-keys.json
+backup_mongo_data/
+.DS_Store
