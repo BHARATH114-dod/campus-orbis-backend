@@ -814,7 +814,7 @@ async function main() {
     // localhost during development.
     res.cookie(SESSION_COOKIE, token, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       secure: process.env.NODE_ENV === 'production',
       maxAge: SESSION_MAX_AGE_MS
     });
@@ -1261,22 +1261,27 @@ async function main() {
   // supported here even for same-origin-without-credentials cases, since
   // this app has no unauthenticated cross-origin use case.
   const allowedOrigins = String(process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-  if (allowedOrigins.length) {
-    app.use((req, res, next) => {
-      const origin = req.headers.origin;
-      if (origin && allowedOrigins.includes(origin)) {
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      const isAllowed = allowedOrigins.length === 0 ||
+        allowedOrigins.includes('*') ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost');
+      if (isAllowed) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Vary', 'Origin');
       }
-      if (req.method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-        return res.sendStatus(204);
-      }
-      next();
-    });
-  }
+    }
+    if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+      return res.sendStatus(204);
+    }
+    next();
+  });
   // Global NoSQL-injection defense (Section 8): strips any object key that
   // starts with "$" or contains "." from req.body/req.query/req.params
   // before any route handler ever sees it. This is what stops a request
