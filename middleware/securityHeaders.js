@@ -62,7 +62,7 @@ function buildSecurityHeaders() {
     // 'none' above is stricter and takes precedence in modern browsers, but
     // we keep both for older browsers that only understand X-Frame-Options.
     crossOriginEmbedderPolicy: false, // would block the cross-origin cdnjs script/worker loads above
-    crossOriginResourcePolicy: { policy: 'same-site' },
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   });
 }
 

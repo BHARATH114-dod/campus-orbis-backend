@@ -382,18 +382,41 @@ class SupabaseGridFSBucket {
     return writable;
   }
 
+  async getFile(id) {
+    const fileId = String(id);
+    try {
+      const res = await this.pool.query(
+        `SELECT data, content_type, filename, length FROM storage_files WHERE id = $1 LIMIT 1;`,
+        [fileId]
+      );
+      if (!res.rows || res.rows.length === 0 || !res.rows[0].data) return null;
+      return {
+        buffer: Buffer.from(res.rows[0].data, 'base64'),
+        contentType: res.rows[0].content_type || 'image/jpeg',
+        filename: res.rows[0].filename,
+        length: Number(res.rows[0].length)
+      };
+    } catch (err) {
+      console.error(`[SupabaseGridFS ${this.bucketName}] getFile error:`, err.message);
+      return null;
+    }
+  }
+
   openDownloadStream(id) {
     const fileId = String(id);
     const pt = new PassThrough();
 
     this.pool.query(
-      `SELECT data, content_type FROM storage_files WHERE id = $1 LIMIT 1;`,
+      `SELECT data, content_type, filename FROM storage_files WHERE id = $1 LIMIT 1;`,
       [fileId]
     ).then(res => {
       if (!res.rows || res.rows.length === 0 || !res.rows[0].data) {
         pt.emit('error', new Error('FileNotFound'));
         return;
       }
+      pt.contentType = res.rows[0].content_type;
+      pt.filename = res.rows[0].filename;
+      pt.emit('file', { contentType: res.rows[0].content_type, filename: res.rows[0].filename });
       const buf = Buffer.from(res.rows[0].data, 'base64');
       pt.end(buf);
     }).catch(err => {

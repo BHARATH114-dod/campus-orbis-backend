@@ -2185,8 +2185,23 @@ async function main() {
   app.get('/api/super/colleges/:id/logo', ah(async (req, res) => {
     const college = await Colleges.findOne({ id: req.params.id });
     if (!college || !college.logo_file_id) return res.status(404).end();
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    if (typeof logoBucket.getFile === 'function') {
+      const file = await logoBucket.getFile(college.logo_file_id);
+      if (!file || !file.buffer) return res.status(404).end();
+      res.setHeader('Content-Type', file.contentType || 'image/jpeg');
+      res.setHeader('Content-Length', file.buffer.length);
+      return res.end(file.buffer);
+    }
+
     const stream = logoBucket.openDownloadStream(new ObjectId(college.logo_file_id));
+    stream.on('file', (file) => {
+      if (file && file.contentType) res.setHeader('Content-Type', file.contentType);
+    });
     stream.on('error', () => { if (!res.headersSent) res.status(404).end(); });
     stream.pipe(res);
   }));
