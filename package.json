@@ -1,0 +1,37 @@
+{
+  "name": "campus-orbis",
+  "version": "3.0.0",
+  "description": "Campus Orbis - multi-college platform with Super Admin, College Admin, HOD, Faculty and Student roles",
+  "private": true,
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/security.test.js",
+    "test:integration": "node --test tests/integration.smoke.test.js",
+    "test:all": "node --test tests/",
+    "security:verify": "node scripts/security-verify.js"
+  },
+  "dependencies": {
+    "@e965/xlsx": "^0.20.3",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.19.2",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "mongodb": "^6.9.0",
+    "multer": "^2.2.0",
+    "web-push": "^3.6.7",
+    "ws": "^8.18.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.0",
+    "qs": "6.16.0"
+  },
+  "devDependencies": {
+    "mingo": "^7.2.4",
+    "supertest": "^7.2.2"
+  }
+}

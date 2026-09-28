@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#123524">
+<title>Campus Orbis | Smart Campus Platform</title>
+<link rel="icon" href="/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- UPDATED: apply the saved light/dark theme before first paint, shared with the login page via the same localStorage key -->
+<script>(function(){try{document.documentElement.setAttribute('data-theme', localStorage.getItem('campusync-theme')||'light');}catch(e){}})();</script>
+<style>
+:root{
+  --ink:#123524;
+  --ink-light:#5c7267;
+  --paper:#F1F8F3;
+  --paper-card:#FFFFFF;
+  --gold:#f5a623;
+  --gold-deep:#d88f12;
+  --teal:#2f9e5b;
+  --purple:#1f6b3a;
+  --line:#DCEAE0;
+  --grad:linear-gradient(135deg,var(--purple),var(--teal));
+  --shadow-color:18,53,36;
+  --surface-dark:#123524;
+  /* Hero background theme palette (kept scoped to the hero, doesn't change the app's core brand colors) */
+  --hero-primary:#2563EB;
+  --hero-secondary:#60A5FA;
+  --hero-accent:#22C55E;
+}
+/* UPDATED: dark mode, toggled from the nav and shared with the login page */
+[data-theme="dark"]{
+  --ink:#EAF3EC;
+  --ink-light:#9FB3A8;
+  --paper:#0E1811;
+  --paper-card:#16241C;
+  --line:#28402F;
+  --shadow-color:0,0,0;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Poppins',sans-serif;
+  color:var(--ink);
+  background:var(--paper-card);
+  overflow-x:hidden;
+  transition:background-color .2s ease, color .2s ease;
+}
+/* ---------- AMBIENT BACKGROUND THEME (matches the dashboard app) ----------
+   UPDATED (v2 — made genuinely visible): corner glow blobs + a clearly-tinted watermark +
+   brighter drifting sprinkles, matching the boosted version used across the dashboards. */
+.bg-glow{
+  position:fixed;inset:0;z-index:-3;pointer-events:none;
+  background:
+    radial-gradient(circle at 8% 12%,  rgba(47,158,91,0.30) 0%, rgba(47,158,91,0) 45%),
+    radial-gradient(circle at 92% 18%, rgba(96,165,250,0.24) 0%, rgba(96,165,250,0) 42%),
+    radial-gradient(circle at 85% 90%, rgba(245,166,35,0.22) 0%, rgba(245,166,35,0) 45%),
+    radial-gradient(circle at 12% 88%, rgba(37,99,235,0.18) 0%, rgba(37,99,235,0) 42%);
+}
+[data-theme="dark"] .bg-glow{
+  background:
+    radial-gradient(circle at 8% 12%,  rgba(47,158,91,0.22) 0%, rgba(47,158,91,0) 45%),
+    radial-gradient(circle at 92% 18%, rgba(96,165,250,0.16) 0%, rgba(96,165,250,0) 42%),
+    radial-gradient(circle at 85% 90%, rgba(245,166,35,0.16) 0%, rgba(245,166,35,0) 45%),
+    radial-gradient(circle at 12% 88%, rgba(37,99,235,0.14) 0%, rgba(37,99,235,0) 42%);
+}
+.bg-scene{
+  position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background-image:url('/hero-bg.svg');
+  background-size:cover;background-position:center top;
+  opacity:0.16;
+}
+[data-theme="dark"] .bg-scene{display:none;}
+.bg-sprinkles{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;}
+.sprinkle{
+  position:absolute;bottom:-6vh;border-radius:50%;
+  background:var(--teal);opacity:0;
+  box-shadow:0 0 6px 1px rgba(47,158,91,0.5);
+  animation:sprinkleDrift linear infinite;
+}
+[data-theme="dark"] .sprinkle{background:var(--gold);box-shadow:0 0 6px 1px rgba(245,166,35,0.5);}
+@keyframes sprinkleDrift{
+  0%{transform:translate(0,0);opacity:0;}
+  8%{opacity:0.55;}
+  92%{opacity:0.4;}
+  100%{transform:translate(18px,-112vh);opacity:0;}
+}
+@media (prefers-reduced-motion: reduce){
+  .sprinkle{animation:none;display:none;}
+}
+img{max-width:100%;display:block;}
+a{text-decoration:none;color:inherit;}
+ul{list-style:none;}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px;}
+
+/* ---------- HEADER ---------- */
+header{
+  position:sticky;top:0;z-index:50;
+  background:var(--grad);
+  box-shadow:0 4px 18px rgba(18,53,36,0.18);
+}
+.nav-inner{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 28px;max-width:1180px;margin:0 auto;
+}
+.brand{display:flex;align-items:center;gap:10px;color:#fff;}
+.brand img{width:38px;height:38px;object-fit:contain;border-radius:8px;background:#fff;padding:3px;}
+.brand span{font-size:21px;font-weight:800;letter-spacing:-0.01em;}
+nav.links{display:flex;gap:30px;}
+nav.links a{color:#fff;font-weight:500;font-size:14.5px;opacity:0.92;transition:opacity .15s;}
+nav.links a:hover{opacity:1;text-decoration:underline;}
+.nav-actions{display:flex;align-items:center;gap:12px;}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:10px 22px;border-radius:30px;font-weight:600;font-size:14px;
+  border:none;cursor:pointer;transition:transform .15s ease, box-shadow .15s ease;
+}
+.btn:hover{transform:translateY(-2px);}
+.btn-login{background:#fff;color:var(--purple);}
+.btn-login:hover{box-shadow:0 8px 18px rgba(0,0,0,0.15);}
+.btn-signup{background:var(--gold);color:#fff;}
+.btn-signup:hover{background:var(--gold-deep);box-shadow:0 8px 18px rgba(245,166,35,0.35);}
+/* UPDATED: Super Admin entry point, placed in the top nav next to Login */
+.btn-super{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.55);padding:8.5px 18px;}
+.btn-super:hover{background:rgba(255,255,255,0.12);border-color:#fff;}
+/* UPDATED: light/dark theme toggle in the nav */
+.theme-toggle-nav{
+  width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.55);
+  background:transparent;color:#fff;font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.theme-toggle-nav:hover{background:rgba(255,255,255,0.12);}
+.hamburger{display:none;background:none;border:none;font-size:26px;color:#fff;cursor:pointer;}
+
+/* ---------- HERO ---------- */
+/* UPDATED: full-width campus illustration as the hero background (public/hero-bg.svg),
+   with plenty of clean space kept in the middle of the artwork for the centered content
+   below. The dark-blue readability overlay is baked into the SVG itself. */
+.hero{
+  position:relative;
+  min-height:min(92vh,760px);
+  background-color:#0B1B3A;
+  background-image:url('/hero-bg.svg');
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  display:flex;align-items:center;justify-content:center;
+  padding:120px 24px 80px;
+  text-align:center;
+}
+.hero-inner{
+  max-width:720px;margin:0 auto;
+  display:flex;flex-direction:column;align-items:center;gap:22px;
+}
+.hero-badge{
+  display:flex;align-items:center;justify-content:center;
+  width:84px;height:84px;border-radius:22px;
+  background:rgba(255,255,255,0.14);
+  border:1px solid rgba(255,255,255,0.35);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 12px 34px rgba(6,20,44,0.28);
+}
+.hero-badge img{width:52px;height:52px;object-fit:contain;}
+.hero-text h1{
+  font-size:clamp(32px,5vw,52px);font-weight:800;line-height:1.18;
+  color:#FFFFFF;text-shadow:0 2px 18px rgba(6,20,44,0.35);
+}
+.hero-text h1 .accent{color:var(--hero-secondary);}
+.hero-text p{
+  font-size:clamp(15px,2vw,18.5px);color:rgba(255,255,255,0.92);
+  line-height:1.7;max-width:520px;margin:10px auto 0;
+  text-shadow:0 1px 12px rgba(6,20,44,0.3);
+}
+.hero-cta-row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
+.hero-btn-primary{
+  padding:14px 32px;border-radius:12px;font-size:15px;font-weight:700;
+  background:var(--hero-primary);color:#fff;border:1px solid var(--hero-primary);
+  box-shadow:0 14px 30px -8px rgba(37,99,235,0.55);
+}
+.hero-btn-primary:hover{background:#1D4ED8;}
+.hero-btn-ghost{
+  padding:14px 32px;border-radius:12px;font-size:15px;font-weight:700;
+  background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.55);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.hero-btn-ghost:hover{background:rgba(255,255,255,0.22);}
+
+/* ---------- SECTIONS ---------- */
+section{padding:70px 28px;}
+.section-head{text-align:center;max-width:640px;margin:0 auto 44px;}
+.section-head .eyebrow{color:var(--teal);font-weight:700;font-size:12.5px;letter-spacing:2px;text-transform:uppercase;}
+.section-head h2{font-size:clamp(26px,4vw,36px);font-weight:800;margin-top:8px;color:var(--purple);}
+.section-head p{color:var(--ink-light);margin-top:12px;font-size:15px;line-height:1.6;}
+
+/* About */
+#about{background:var(--paper);}
+.about-grid{
+  max-width:1180px;margin:0 auto;display:flex;gap:50px;align-items:center;flex-wrap:wrap;
+}
+.about-grid .about-copy{flex:1;min-width:280px;}
+.about-grid .about-copy p{color:var(--ink-light);line-height:1.75;font-size:15.5px;margin-bottom:14px;}
+.about-stats{flex:1;min-width:280px;display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.stat-card{
+  background:var(--paper-card);border:1px solid var(--line);border-radius:16px;
+  padding:24px;text-align:center;
+}
+.stat-card .num{font-size:30px;font-weight:800;color:var(--teal);}
+.stat-card .label{font-size:12.5px;color:var(--ink-light);margin-top:4px;text-transform:uppercase;letter-spacing:0.05em;}
+
+/* Features */
+.features-grid{
+  max-width:1180px;margin:0 auto;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:22px;
+}
+.feature-card{
+  background:var(--paper-card);border:1px solid var(--line);border-radius:18px;
+  padding:28px 24px;transition:transform .2s ease, box-shadow .2s ease;
+}
+.feature-card:hover{transform:translateY(-6px);box-shadow:0 20px 40px -18px rgba(18,53,36,0.25);}
+.feature-card .icon{
+  width:52px;height:52px;border-radius:14px;background:var(--grad);
+  display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;
+}
+.feature-card h3{font-size:17px;font-weight:700;margin-bottom:8px;}
+.feature-card p{font-size:13.8px;color:var(--ink-light);line-height:1.6;}
+
+/* Events teaser */
+#events{background:var(--grad);color:#fff;text-align:center;}
+#events .section-head .eyebrow{color:#c9f2d8;}
+#events .section-head h2{color:#fff;}
+#events .section-head p{color:rgba(255,255,255,0.85);}
+#events .btn-signup{margin-top:6px;}
+
+/* Contact */
+#contact{background:var(--paper);}
+.contact-box{
+  max-width:720px;margin:0 auto;background:var(--paper-card);border:1px solid var(--line);
+  border-radius:20px;padding:40px;text-align:center;
+}
+.contact-box p{color:var(--ink-light);font-size:15px;line-height:1.7;margin-bottom:20px;}
+.contact-box .btn-signup{padding:12px 30px;font-size:15px;}
+
+/* Footer */
+footer.footer{background:var(--surface-dark);color:#cfe4d5;padding:50px 28px 22px;}
+.footer-container{
+  max-width:1180px;margin:0 auto;display:grid;
+  grid-template-columns:1.6fr 1fr 1fr 1.2fr;gap:34px;
+}
+.footer-brand h2{color:#fff;font-size:19px;font-weight:800;margin:0 0 6px;}
+.footer-brand img{width:26px;height:26px;object-fit:contain;border-radius:6px;background:#fff;padding:2px;vertical-align:middle;margin-right:8px;}
+.footer-brand p{font-size:13px;color:#a9c4b1;line-height:1.6;margin:0 0 10px;}
+.footer-brand .college-count{font-size:12.5px;color:#c9f2d8;font-weight:600;}
+.footer-links h3, .footer-contact h3{color:#fff;font-size:14px;font-weight:700;margin:0 0 14px;}
+.footer-links{display:flex;flex-direction:column;gap:9px;}
+.footer-links a{font-size:13px;color:#a9c4b1;}
+.footer-links a:hover{color:#fff;text-decoration:underline;}
+.footer-contact p{font-size:13px;color:#a9c4b1;margin:0 0 8px;}
+.social-icons{display:flex;gap:10px;margin-top:12px;}
+.social-icons a{
+  width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);
+  display:flex;align-items:center;justify-content:center;color:#cfe4d5;font-size:13px;
+}
+.social-icons a:hover{background:var(--teal);color:#fff;}
+.footer-bottom{
+  max-width:1180px;margin:34px auto 0;padding-top:18px;
+  border-top:1px solid rgba(255,255,255,0.1);text-align:center;
+}
+.footer-bottom p{font-size:12.5px;color:#8fac97;}
+@media(max-width:820px){
+  .footer-container{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:520px){
+  .footer-container{grid-template-columns:1fr;}
+}
+
+@media(max-width:820px){
+  nav.links{
+    position:absolute;top:100%;left:0;right:0;
+    background:var(--purple);flex-direction:column;padding:18px 28px;gap:16px;
+    display:none;
+  }
+  nav.links.open{display:flex;}
+  .hamburger{display:block;}
+  .about-grid{flex-direction:column;}
+  .hero{min-height:min(88vh,620px);padding:100px 20px 60px;}
+}
+@media(max-width:480px){
+  .nav-actions{gap:8px;}
+  .btn-super{padding:8px 12px;font-size:12.5px;}
+  .btn-signup{padding:8px 16px;font-size:12.5px;}
+  .hero{min-height:min(80vh,540px);padding:90px 16px 50px;}
+  .hero-badge{width:68px;height:68px;border-radius:18px;}
+  .hero-badge img{width:42px;height:42px;}
+  .hero-btn-primary,.hero-btn-ghost{padding:12px 24px;font-size:14px;}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-glow" aria-hidden="true"></div>
+<div class="bg-scene" aria-hidden="true"></div>
+<div class="bg-sprinkles" aria-hidden="true">
+<span class="sprinkle" style="left:45.0%;width:12px;height:12px;animation-duration:24.4s;animation-delay:-19.1s;"></span>
+<span class="sprinkle" style="left:44.9%;width:13px;height:13px;animation-duration:17.1s;animation-delay:-13.7s;"></span>
+<span class="sprinkle" style="left:47.2%;width:13px;height:13px;animation-duration:23.7s;animation-delay:-2.2s;"></span>
+<span class="sprinkle" style="left:30.8%;width:7px;height:7px;animation-duration:20.9s;animation-delay:-18.6s;"></span>
+<span class="sprinkle" style="left:62.3%;width:13px;height:13px;animation-duration:25.8s;animation-delay:-24.9s;"></span>
+<span class="sprinkle" style="left:64.1%;width:13px;height:13px;animation-duration:22.2s;animation-delay:-13.8s;"></span>
+<span class="sprinkle" style="left:81.0%;width:7px;height:7px;animation-duration:15.7s;animation-delay:-3.0s;"></span>
+<span class="sprinkle" style="left:25.0%;width:6px;height:6px;animation-duration:23.6s;animation-delay:-7.7s;"></span>
+<span class="sprinkle" style="left:58.1%;width:8px;height:8px;animation-duration:20.7s;animation-delay:-13.3s;"></span>
+<span class="sprinkle" style="left:49.5%;width:7px;height:7px;animation-duration:20.0s;animation-delay:-5.6s;"></span>
+<span class="sprinkle" style="left:96.8%;width:7px;height:7px;animation-duration:22.8s;animation-delay:-7.2s;"></span>
+<span class="sprinkle" style="left:23.8%;width:9px;height:9px;animation-duration:15.3s;animation-delay:-8.6s;"></span>
+<span class="sprinkle" style="left:12.3%;width:7px;height:7px;animation-duration:24.3s;animation-delay:-9.4s;"></span>
+<span class="sprinkle" style="left:93.0%;width:6px;height:6px;animation-duration:17.3s;animation-delay:-16.0s;"></span>
+<span class="sprinkle" style="left:7.0%;width:10px;height:10px;animation-duration:25.8s;animation-delay:-10.3s;"></span>
+<span class="sprinkle" style="left:8.9%;width:8px;height:8px;animation-duration:23.6s;animation-delay:-6.4s;"></span>
+<span class="sprinkle" style="left:10.3%;width:10px;height:10px;animation-duration:15.2s;animation-delay:-6.2s;"></span>
+<span class="sprinkle" style="left:89.7%;width:8px;height:8px;animation-duration:17.7s;animation-delay:-1.8s;"></span>
+<span class="sprinkle" style="left:7.7%;width:11px;height:11px;animation-duration:17.0s;animation-delay:-9.5s;"></span>
+<span class="sprinkle" style="left:44.5%;width:8px;height:8px;animation-duration:25.8s;animation-delay:-19.9s;"></span>
+</div>
+
+<header>
+  <div class="nav-inner">
+    <a class="brand" href="#home">
+      <img src="/logo.png" alt="Campus Orbis logo">
+      <span>Campus Orbis</span>
+    </a>
+    <nav class="links" id="navLinks">
+      <a href="#home">Home</a>
+      <a href="#about">About</a>
+      <a href="#features">Features</a>
+      <a href="#events">Events</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme-toggle-nav" id="navThemeToggle" aria-label="Toggle dark mode">🌙</button>
+      <!-- UPDATED: Super Admin login, placed at the top like the regular Login button -->
+      <a class="btn btn-super" href="/index.html#admin">Super Admin</a>
+      <a class="btn btn-signup" href="/index.html">Login</a>
+      <button class="hamburger" id="hamburgerBtn" aria-label="Toggle menu">☰</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero" id="home">
+  <div class="hero-inner">
+    <div class="hero-badge"><img src="/logo.png" alt="Campus Orbis logo"></div>
+    <div class="hero-text">
+      <h1>Welcome to <span class="accent">Campus Orbis</span></h1>
+      <p>Your one-stop solution for campus activities — announcements, events, notes, attendance, and marks, all in one place.</p>
+    </div>
+    <div class="hero-cta-row">
+      <a class="hero-btn-primary" href="/index.html">Login</a>
+      <a class="hero-btn-ghost" href="#about">Get Started</a>
+    </div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="about-grid">
+    <div class="about-copy">
+      <div class="section-head" style="text-align:left;margin:0 0 20px;">
+        <div class="eyebrow">About Campus Orbis</div>
+        <h2>Everything your campus needs, in one login</h2>
+      </div>
+      <p>Campus Orbis brings announcements, events, shared notes, a public board for lost &amp; found and campus discussion, and secure role-based access for students, faculty, and admins into a single platform.</p>
+      <p>Every college gets its own Super-Admin-created space, with its own College Admin, HODs, faculty, and students — no self sign-up, and no visibility into any other college's data.</p>
+    </div>
+    <div class="about-stats">
+      <div class="stat-card"><div class="num">5</div><div class="label">Role types</div></div>
+      <div class="stat-card"><div class="num" id="collegeCountStat">—</div><div class="label">Colleges on Campus Orbis</div></div>
+      <div class="stat-card"><div class="num">24/7</div><div class="label">Campus access</div></div>
+      <div class="stat-card"><div class="num">100%</div><div class="label">Isolated by college</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="section-head">
+    <div class="eyebrow">What's inside</div>
+    <h2>Our Features</h2>
+    <p>Built to keep every campus activity organized, secure, and easy to find.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card"><div class="icon">🏫</div><h3>Independent Colleges</h3><p>Every college's data, users, and content are fully separate — no cross-college visibility.</p></div>
+    <div class="feature-card"><div class="icon">🧑‍🏫</div><h3>Role Hierarchy</h3><p>Super Admin → College Admin → HOD → Faculty → Student, each managing only their own layer.</p></div>
+    <div class="feature-card"><div class="icon">🗓️</div><h3>Events &amp; Posters</h3><p>Create events with a poster image, and students RSVP in one tap.</p></div>
+    <div class="feature-card"><div class="icon">📄</div><h3>Study Notes Sharing</h3><p>Upload notes and slides — view-only by default, downloadable if the uploader allows it.</p></div>
+    <div class="feature-card"><div class="icon">✅</div><h3>Attendance &amp; Marks</h3><p>Faculty record attendance and test scores for their section; students see their own.</p></div>
+    <div class="feature-card"><div class="icon">📢</div><h3>Public Board &amp; Lost+Found</h3><p>Post complaints, opinions, or a lost item; reply directly to reconnect it with its owner.</p></div>
+    <div class="feature-card"><div class="icon">🌐</div><h3>Campus Network</h3><p>College Admins can request to connect with another college's admin — nothing shares until accepted.</p></div>
+    <div class="feature-card"><div class="icon">⚙️</div><h3>Account Settings</h3><p>Every signed-in user can change their own password.</p></div>
+  </div>
+</section>
+
+<section id="events">
+  <div class="section-head">
+    <div class="eyebrow">Stay in the loop</div>
+    <h2>Never miss what's happening on campus</h2>
+    <p>Workshops, fests, seminars, and more — sign in to see what's scheduled.</p>
+  </div>
+  <a class="btn btn-signup" href="/index.html" style="padding:13px 30px;font-size:15px;">Sign In</a>
+</section>
+
+<section id="contact">
+  <div class="section-head">
+    <div class="eyebrow">Get in touch</div>
+    <h2>Don't have a login yet?</h2>
+  </div>
+  <div class="contact-box">
+    <p>There's no open sign-up — every account is created by the role above it. Students and faculty should contact their HOD; HODs are added by their College Admin.</p>
+    <a class="btn btn-signup" href="/index.html">Sign In</a>
+  </div>
+</section>
+
+<footer class="footer">
+    <div class="footer-container">
+
+        <div class="footer-brand">
+            <h2><img src="/logo.png" alt="Campus Orbis logo">Campus Orbis</h2>
+            <p>
+                Connecting students, faculty, and campus life in one place —
+                a separate, secure space for every college on the platform.
+            </p>
+            <p class="college-count"><span id="collegeCountFooter">—</span> colleges on Campus Orbis</p>
+        </div>
+
+        <div class="footer-links">
+            <h3>Quick Links</h3>
+            <a href="#home">Home</a>
+            <a href="#events">Events</a>
+            <a href="#features">Features</a>
+            <a href="#about">About</a>
+        </div>
+
+        <div class="footer-links">
+            <h3>Support</h3>
+            <a href="#">Help Center</a>
+            <a href="#">FAQs</a>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms & Conditions</a>
+            <a href="#">Contact</a>
+        </div>
+
+        <div class="footer-contact">
+            <h3>Contact</h3>
+            <p>📍 Campus Orbis Team</p>
+            <p>📧 support@campusorbis.com</p>
+            <p>📞 +91 98765 43210</p>
+
+            <div class="social-icons">
+                <a href="#"><i class="fab fa-instagram"></i></a>
+                <a href="#"><i class="fab fa-linkedin"></i></a>
+                <a href="#"><i class="fab fa-github"></i></a>
+                <a href="#"><i class="fab fa-x-twitter"></i></a>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer-bottom">
+        <p>© 2026 CampusSync. All Rights Reserved.</p>
+    </div>
+</footer>
+
+<script>
+  // UPDATED: light/dark toggle, shared with the login page via localStorage.
+  (function(){
+    var btn = document.getElementById('navThemeToggle');
+    function apply(theme){
+      document.documentElement.setAttribute('data-theme', theme);
+      try{ localStorage.setItem('campusync-theme', theme); }catch(e){}
+      btn.textContent = theme==='dark' ? '☀️' : '🌙';
+    }
+    apply(document.documentElement.getAttribute('data-theme') || 'light');
+    btn.addEventListener('click', function(){
+      apply(document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark');
+    });
+  })();
+  document.getElementById('hamburgerBtn').addEventListener('click', function(){
+    document.getElementById('navLinks').classList.toggle('open');
+  });
+  document.querySelectorAll('#navLinks a').forEach(function(a){
+    a.addEventListener('click', function(){
+      document.getElementById('navLinks').classList.remove('open');
+    });
+  });
+  fetch('/api/public/stats').then(function(r){ return r.json(); }).then(function(data){
+    var n = data.colleges != null ? data.colleges : 0;
+    var statEl = document.getElementById('collegeCountStat');
+    var footerEl = document.getElementById('collegeCountFooter');
+    if(statEl) statEl.textContent = n;
+    if(footerEl) footerEl.textContent = n;
+  }).catch(function(){});
+</script>
+</body>
+</html>

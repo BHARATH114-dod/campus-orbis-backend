@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#123524">
+<title>Campus Orbis | Smart Campus Platform</title>
+<link rel="icon" href="/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app_style.css">
+<!-- UPDATED: apply the saved light/dark theme before first paint, so there's no flash of the wrong theme -->
+<script>(function(){try{document.documentElement.setAttribute('data-theme', localStorage.getItem('campusync-theme')||'light');}catch(e){}})();</script>
+</head>
+<body>
+
+<!-- UPDATED: site-wide ambient background theme — a very faint campus watermark plus
+     slow-drifting sprinkles, sitting behind the auth screens AND every dashboard. -->
+<div class="bg-glow" aria-hidden="true"></div>
+<div class="bg-scene" aria-hidden="true"></div>
+<div class="bg-sprinkles" aria-hidden="true">
+<span class="sprinkle" style="left:45.0%;width:12px;height:12px;animation-duration:24.4s;animation-delay:-19.1s;"></span>
+<span class="sprinkle" style="left:44.9%;width:13px;height:13px;animation-duration:17.1s;animation-delay:-13.7s;"></span>
+<span class="sprinkle" style="left:47.2%;width:13px;height:13px;animation-duration:23.7s;animation-delay:-2.2s;"></span>
+<span class="sprinkle" style="left:30.8%;width:7px;height:7px;animation-duration:20.9s;animation-delay:-18.6s;"></span>
+<span class="sprinkle" style="left:62.3%;width:13px;height:13px;animation-duration:25.8s;animation-delay:-24.9s;"></span>
+<span class="sprinkle" style="left:64.1%;width:13px;height:13px;animation-duration:22.2s;animation-delay:-13.8s;"></span>
+<span class="sprinkle" style="left:81.0%;width:7px;height:7px;animation-duration:15.7s;animation-delay:-3.0s;"></span>
+<span class="sprinkle" style="left:25.0%;width:6px;height:6px;animation-duration:23.6s;animation-delay:-7.7s;"></span>
+<span class="sprinkle" style="left:58.1%;width:8px;height:8px;animation-duration:20.7s;animation-delay:-13.3s;"></span>
+<span class="sprinkle" style="left:49.5%;width:7px;height:7px;animation-duration:20.0s;animation-delay:-5.6s;"></span>
+<span class="sprinkle" style="left:96.8%;width:7px;height:7px;animation-duration:22.8s;animation-delay:-7.2s;"></span>
+<span class="sprinkle" style="left:23.8%;width:9px;height:9px;animation-duration:15.3s;animation-delay:-8.6s;"></span>
+<span class="sprinkle" style="left:12.3%;width:7px;height:7px;animation-duration:24.3s;animation-delay:-9.4s;"></span>
+<span class="sprinkle" style="left:93.0%;width:6px;height:6px;animation-duration:17.3s;animation-delay:-16.0s;"></span>
+<span class="sprinkle" style="left:7.0%;width:10px;height:10px;animation-duration:25.8s;animation-delay:-10.3s;"></span>
+<span class="sprinkle" style="left:8.9%;width:8px;height:8px;animation-duration:23.6s;animation-delay:-6.4s;"></span>
+<span class="sprinkle" style="left:10.3%;width:10px;height:10px;animation-duration:15.2s;animation-delay:-6.2s;"></span>
+<span class="sprinkle" style="left:89.7%;width:8px;height:8px;animation-duration:17.7s;animation-delay:-1.8s;"></span>
+<span class="sprinkle" style="left:7.7%;width:11px;height:11px;animation-duration:17.0s;animation-delay:-9.5s;"></span>
+<span class="sprinkle" style="left:44.5%;width:8px;height:8px;animation-duration:25.8s;animation-delay:-19.9s;"></span>
+</div>
+
+<div class="boot-loading" id="bootLoading">Loading Campus Orbis…</div>
+
+<!-- UPDATED: two-panel login shell (form panel + branded visual panel), used for both the
+     mandatory college-select stage and the role login stage. #authPanelInner is filled by JS. -->
+<div id="authScreen" style="display:none;">
+  <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
+  <div class="auth-shell">
+    <div class="auth-panel-left">
+      <div class="auth-panel-inner" id="authPanelInner"></div>
+    </div>
+    <div class="auth-panel-right">
+      <div class="auth-visual-glow"></div>
+      <div class="auth-visual-content">
+        <img src="/logo.png" alt="Campus Orbis logo" class="auth-visual-logo">
+        <div class="auth-visual-tagline">One Platform.<br>Every Campus.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="appScreen">
+  <div class="shell">
+    <div class="sidebar" id="sidebar">
+      <div class="brand">
+        <img src="/logo.png" alt="Campus Orbis logo"><h1>Campus Orbis</h1>
+        <button type="button" class="notif-bell" id="notifBellBtn" title="Notifications" aria-label="Notifications">
+          🔔<span class="notif-badge" id="notifBadge" style="display:none;"></span>
+        </button>
+        <button type="button" class="sidebar-close" id="sidebarCloseBtn" aria-label="Close menu">✕</button>
+      </div>
+      <div class="sidebar-nav" id="sidebarNav"></div>
+      <div class="sidebar-footer" id="sidebarFooter"></div>
+    </div>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <div class="main">
+      <div class="mobile-topbar">
+        <button type="button" class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu">☰</button>
+        <strong id="mobileWho"></strong>
+        <div class="mobile-actions">
+          <button class="btn btn-outline btn-small" id="mobileSettings">⚙</button>
+          <button class="btn btn-outline btn-small" id="mobileLogout">Log out</button>
+        </div>
+      </div>
+      <div id="mainContent"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<div class="test-fullpage" id="testFullPage" style="display:none;"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+  if(window.pdfjsLib){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+</script>
+<script src="/app_logic.js"></script>
+</body>
+</html>
