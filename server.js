@@ -775,7 +775,9 @@ async function main() {
   // Auth / scope helpers
   // ---------------------------------------------------------------------------
   const requireAuth = ah(async (req, res, next) => {
-    const token = req.cookies[SESSION_COOKIE];
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    const token = bearerToken || req.headers['x-session-token'] || req.cookies[SESSION_COOKIE];
     if (!token) return res.status(401).json({ error: 'Not signed in.' });
     const session = await Sessions.findOne({ token });
     if (!session) return res.status(401).json({ error: 'Session expired. Please sign in again.' });
@@ -788,6 +790,7 @@ async function main() {
       }
     }
     req.user = user;
+    req.token = token;
     // Staff Messaging (item 3/4) "Online/Offline" status — a lightweight,
     // best-effort presence signal rather than a dedicated heartbeat
     // endpoint: every authenticated request already proves the user is
@@ -818,6 +821,7 @@ async function main() {
       secure: process.env.NODE_ENV === 'production',
       maxAge: SESSION_MAX_AGE_MS
     });
+    return token;
   }
   // UPDATED: posting is no longer "wherever your role automatically
   // cascades to" — the poster explicitly picks the audience (department /
@@ -1432,15 +1436,16 @@ async function main() {
         return res.status(403).json({ error: 'This college account has been disabled.' });
       }
     }
-    await startSession(res, user.username);
+    const token = await startSession(res, user.username);
     if (['super_admin', 'college_admin', 'hod'].includes(user.role)) {
       await logSecurityEvent('login_success_privileged', req, { username: user.username, role: user.role });
     }
-    res.json({ user: publicUser(user) });
+    res.json({ user: publicUser(user), token });
   }));
 
   app.post('/api/auth/logout', requireAuth, ah(async (req, res) => {
-    await Sessions.deleteOne({ token: req.cookies[SESSION_COOKIE] });
+    const token = req.token || req.cookies[SESSION_COOKIE];
+    if (token) await Sessions.deleteOne({ token });
     res.clearCookie(SESSION_COOKIE);
     res.json({ ok: true });
   }));
