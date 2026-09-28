@@ -1385,11 +1385,38 @@ async function main() {
     if (role !== 'super_admin' && !college_id) {
       return res.status(400).json({ error: 'Please select your college first.' });
     }
-    const user = await Users.findOne({ username, role });
-    const { valid, needsRehash } = verifyPassword(password || '', user && user.password_hash);
-    if (!user || !valid) {
-      await logSecurityEvent('login_failed', req, { attempted_username: username, role });
-      return res.status(401).json({ error: `No matching ${role.replace('_', ' ')} account with that username and password.` });
+    const cleanUsername = String(username || '').trim();
+    const usernameRegex = new RegExp(`^${cleanUsername.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    let user = await Users.findOne({ username: usernameRegex, role });
+
+    if (!user) {
+      const otherRoleUser = await Users.findOne({ username: usernameRegex });
+      if (otherRoleUser) {
+        const correctRoleName = otherRoleUser.role === 'college_admin' ? 'College Admin' : (otherRoleUser.role === 'super_admin' ? 'Super Admin' : otherRoleUser.role.toUpperCase());
+        return res.status(400).json({
+          error: `"${otherRoleUser.username}" account belongs to "${correctRoleName}", not "${role.replace('_', ' ').toUpperCase()}". Please click the "${correctRoleName}" button above.`
+        });
+      }
+      return res.status(401).json({ error: `No matching ${role.replace('_', ' ')} account with username "${cleanUsername}".` });
+    }
+
+    let { valid, needsRehash } = verifyPassword(password || '', user && user.password_hash);
+    if (!valid && password) {
+      const trimmedPw = String(password).trim();
+      if (trimmedPw !== password) {
+        ({ valid, needsRehash } = verifyPassword(trimmedPw, user.password_hash));
+      }
+    }
+    if (!valid && password) {
+      const upperPw = String(password).trim().toUpperCase();
+      if (upperPw === user.username) {
+        ({ valid, needsRehash } = verifyPassword(upperPw, user.password_hash));
+      }
+    }
+
+    if (!valid) {
+      await logSecurityEvent('login_failed', req, { attempted_username: cleanUsername, role });
+      return res.status(401).json({ error: 'Incorrect password. Please check your password and try again.' });
     }
     if (needsRehash) {
       // Transparent one-time upgrade off the legacy SHA-256 hash now that the
