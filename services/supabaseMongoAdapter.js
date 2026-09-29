@@ -496,7 +496,12 @@ class SupabaseMongoClient {
     this.pool = new Pool({
       connectionString,
       ssl: { rejectUnauthorized: false },
-      max: 20
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
+    this.pool.on('error', (err) => {
+      console.error('[SupabasePool] Unexpected idle client error (auto-recovered):', err.message);
     });
     this._db = new SupabaseDb(this.pool);
   }
