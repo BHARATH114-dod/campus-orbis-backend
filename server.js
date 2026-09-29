@@ -777,7 +777,7 @@ async function main() {
   const requireAuth = ah(async (req, res, next) => {
     const authHeader = req.headers.authorization;
     const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-    const token = bearerToken || req.headers['x-session-token'] || req.cookies[SESSION_COOKIE];
+    const token = bearerToken || req.headers['x-session-token'] || req.query?.token || req.cookies[SESSION_COOKIE];
     if (!token) return res.status(401).json({ error: 'Not signed in.' });
     const session = await Sessions.findOne({ token });
     if (!session) return res.status(401).json({ error: 'Session expired. Please sign in again.' });
@@ -6837,8 +6837,10 @@ async function main() {
   app.get('/api/hod/tests/:id/monitoring', requireAuth, requireRole('hod'), ah(async (req, res) => {
     const test = await Tests.findOne({ id: req.params.id });
     if (!test) return res.status(404).json({ error: 'Not found.' });
-    const section = await Sections.findOne({ id: test.section_id, college_id: req.user.college_id, department: req.user.department });
-    if (!section) return res.status(404).json({ error: 'Not found.' });
+    if (test.created_by !== req.user.username) {
+      const section = await Sections.findOne({ id: test.section_id, college_id: req.user.college_id, department: req.user.department });
+      if (!section) return res.status(404).json({ error: 'Not found.' });
+    }
     const joins = await TestJoins.find({ test_id: req.params.id }).toArray();
     if (joins.length === 0) return res.json({ test: { id: test.id, title: test.title, status: testWindowStatus(test) }, students: [] });
     const usernames = joins.map(j => j.student_username);
@@ -6887,8 +6889,10 @@ async function main() {
   app.get('/api/hod/tests/:id/monitoring/:username/stream', requireAuth, requireRole('hod'), ah(async (req, res) => {
     const test = await Tests.findOne({ id: req.params.id });
     if (!test) return res.status(404).json({ error: 'Not found.' });
-    const section = await Sections.findOne({ id: test.section_id, college_id: req.user.college_id, department: req.user.department });
-    if (!section) return res.status(404).json({ error: 'Not found.' });
+    if (test.created_by !== req.user.username) {
+      const section = await Sections.findOne({ id: test.section_id, college_id: req.user.college_id, department: req.user.department });
+      if (!section) return res.status(404).json({ error: 'Not found.' });
+    }
     const join = await TestJoins.findOne({ test_id: req.params.id, student_username: req.params.username });
     if (!join) return res.status(404).json({ error: 'This student has not joined the test.' });
     const stream = await TestMonitoringStreams.findOne({ test_id: req.params.id, student_username: req.params.username });
@@ -10574,7 +10578,13 @@ async function main() {
   }
 
   async function authenticateWsRequest(req) {
-    const token = parseCookie(req.headers.cookie, SESSION_COOKIE);
+    let token = parseCookie(req.headers.cookie, SESSION_COOKIE);
+    if (!token) {
+      try {
+        const url = new URL(req.url, 'http://localhost');
+        token = url.searchParams.get('token');
+      } catch (e) {}
+    }
     if (!token) return null;
     const session = await Sessions.findOne({ token });
     if (!session) return null;
@@ -10702,8 +10712,12 @@ async function main() {
     // relays offer/answer/ICE/view-live messages.
     async function viewerIsAuthorized() {
       if (role === 'faculty') return test.created_by === user.username;
-      const section = await Sections.findOne({ id: test.section_id, college_id: user.college_id, department: user.department });
-      return !!section;
+      if (role === 'hod') {
+        if (test.created_by === user.username) return true;
+        const section = await Sections.findOne({ id: test.section_id, college_id: user.college_id, department: user.department });
+        return !!section;
+      }
+      return false;
     }
 
     let connId = null; // only used on the faculty/hod side, to disambiguate multiple watched students
