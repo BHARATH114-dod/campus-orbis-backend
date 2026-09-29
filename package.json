@@ -11,7 +11,7 @@
     "start": "node server.js",
     "test": "node --test tests/security.test.js",
     "test:integration": "node --test tests/integration.smoke.test.js",
-    "test:all": "node --test tests/",
+    "test:all": "node --test tests/*.test.js",
     "security:verify": "node scripts/security-verify.js"
   },
   "dependencies": {

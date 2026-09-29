@@ -21,7 +21,7 @@ const os = require('os');
 const http = require('http');
 
 try {
-  if (typeof process.loadEnvFile === 'function') {
+  if (typeof process.loadEnvFile === 'function' && process.env.NODE_ENV !== 'test') {
     process.loadEnvFile();
   }
 } catch (e) {}
@@ -2188,7 +2188,6 @@ async function main() {
 
     res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Access-Control-Allow-Origin', '*');
 
     if (typeof logoBucket.getFile === 'function') {
       const file = await logoBucket.getFile(college.logo_file_id);

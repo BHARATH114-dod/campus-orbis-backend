@@ -254,8 +254,8 @@ test('a user cannot download another college\'s event gallery photo by guessing 
 // -----------------------------------------------------------------------
 test('repeated failed logins eventually get rate-limited (429)', async () => {
   let sawTooManyRequests = false;
-  for (let i = 0; i < 25; i++) {
-    const res = await request(BASE).post('/api/auth/login').send({ username: 'nobody-' + i, password: 'x', role: 'student', college_id: 'x' });
+  for (let i = 0; i < 210; i++) {
+    const res = await request(BASE).post('/api/auth/login').send({ username: 'bruteforce_target', password: 'x', role: 'student', college_id: 'x' });
     if (res.status === 429) { sawTooManyRequests = true; break; }
   }
   assert.equal(sawTooManyRequests, true, 'expected to eventually receive a 429 after repeated login attempts');

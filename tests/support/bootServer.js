@@ -10,6 +10,7 @@ const Module = require('module');
 const http = require('http');
 
 function start({ port }) {
+  delete process.env.SUPABASE_DB_URL;
   process.env.PORT = String(port);
   process.env.NODE_ENV = process.env.NODE_ENV || 'test';
   process.env.SUPER_ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME || 'testowner';
