@@ -8365,6 +8365,7 @@ async function main() {
     const isHost = canManageClubQuiz(user, quiz);
     const out = {
       id: quiz.id, title: quiz.title, status: quiz.status,
+      logo: quiz.logo || null,
       total_questions: quiz.questions.length, current_index: quiz.current_index,
       is_host: isHost, joined: !!participant, my_score: participant ? participant.total_score : null,
       my_club_name: participant ? participant.club_name : null,
@@ -8399,13 +8400,15 @@ async function main() {
   // Create a competition quiz — a college-level draft/"lobby", not scoped
   // to any one club (spec item 8).
   app.post('/api/competition-quizzes', requireAuth, requireRole('faculty', 'hod', 'college_admin'), ah(async (req, res) => {
-    const { title, description, questions, save_as_test } = req.body || {};
+    const { title, description, questions, save_as_test, logo } = req.body || {};
     if (!title || !title.trim()) return res.status(400).json({ error: 'Quiz name is required.' });
     const { error, questions: cleanQuestions } = validateQuizQuestions(questions);
     if (error) return res.status(400).json({ error });
+    const cleanLogo = logo ? String(logo).trim() : null;
     const row = {
       id: newId('cquiz'), college_id: req.user.college_id,
       title: String(title).trim(), description: (description || '').trim(),
+      logo: cleanLogo,
       created_by: req.user.username, created_by_name: req.user.name, created_at: Date.now(),
       questions: cleanQuestions, quiz_code: generateQuizCode(),
       status: 'lobby', current_index: -1, current_started_at: null, between_started_at: null,
@@ -8420,6 +8423,7 @@ async function main() {
       const savedRow = {
         id: newId('scquiz'), college_id: req.user.college_id,
         title: row.title, description: row.description,
+        logo: cleanLogo,
         questions: cleanQuestions,
         created_by: req.user.username, created_by_name: req.user.name, created_at: Date.now(),
         source_quiz_id: row.id, times_conducted: 0
@@ -8433,8 +8437,10 @@ async function main() {
   function serializeSavedQuiz(row, includeAnswers) {
     const { _id, questions, ...rest } = row;
     return {
-      ...rest, question_count: questions.length,
-      questions: includeAnswers ? questions : questions.map(q => ({ id: q.id, order: q.order, text: q.text, options: q.options, time_limit_seconds: q.time_limit_seconds, max_points: q.max_points }))
+      ...rest,
+      logo: row.logo || null,
+      question_count: (questions || []).length,
+      questions: includeAnswers ? questions : (questions || []).map(q => ({ id: q.id, order: q.order, text: q.text, options: q.options, time_limit_seconds: q.time_limit_seconds, max_points: q.max_points }))
     };
   }
   function canManageSavedQuiz(user, row) {
@@ -8451,6 +8457,7 @@ async function main() {
     const savedRow = {
       id: newId('scquiz'), college_id: req.user.college_id,
       title: quiz.title, description: quiz.description || '',
+      logo: quiz.logo || null,
       questions: quiz.questions,
       created_by: req.user.username, created_by_name: req.user.name, created_at: Date.now(),
       source_quiz_id: quiz.id, times_conducted: 0
@@ -8464,13 +8471,38 @@ async function main() {
   // quiz never touches these frozen copies.
   app.get('/api/saved-club-quizzes', requireAuth, requireRole('faculty', 'hod', 'college_admin'), ah(async (req, res) => {
     const rows = await SavedClubQuizzes.find({ college_id: req.user.college_id }).sort({ created_at: -1 }).toArray();
-    res.json({ saved_tests: rows.map(r => serializeSavedQuiz(r)) });
+    res.json({ saved_tests: rows.map(r => ({ ...serializeSavedQuiz(r), can_manage: canManageSavedQuiz(req.user, r) })) });
   }));
 
   app.get('/api/saved-club-quizzes/:id', requireAuth, requireRole('faculty', 'hod', 'college_admin'), ah(async (req, res) => {
     const row = await SavedClubQuizzes.findOne({ id: req.params.id });
     if (!row || row.college_id !== req.user.college_id) return res.status(404).json({ error: 'Not found.' });
-    res.json({ saved_test: serializeSavedQuiz(row, true) });
+    res.json({ saved_test: { ...serializeSavedQuiz(row, true), can_manage: canManageSavedQuiz(req.user, row) } });
+  }));
+
+  // Edit a saved quiz template — faculty/hod/college_admin who can manage it
+  app.put('/api/saved-club-quizzes/:id', requireAuth, requireRole('faculty', 'hod', 'college_admin'), ah(async (req, res) => {
+    const row = await SavedClubQuizzes.findOne({ id: req.params.id });
+    if (!row || row.college_id !== req.user.college_id) return res.status(404).json({ error: 'Not found.' });
+    if (!canManageSavedQuiz(req.user, row)) return res.status(403).json({ error: 'You do not have permission to edit this saved test.' });
+    const { title, description, questions, logo } = req.body || {};
+    if (!title || !title.trim()) return res.status(400).json({ error: 'Quiz name is required.' });
+    const { error, questions: cleanQuestions } = validateQuizQuestions(questions);
+    if (error) return res.status(400).json({ error });
+
+    const updateDoc = {
+      title: String(title).trim(),
+      description: (description || '').trim(),
+      questions: cleanQuestions,
+      updated_at: Date.now()
+    };
+    if (logo !== undefined) {
+      updateDoc.logo = logo ? String(logo).trim() : null;
+    }
+
+    await SavedClubQuizzes.updateOne({ id: req.params.id }, { $set: updateDoc });
+    const updated = await SavedClubQuizzes.findOne({ id: req.params.id });
+    res.json({ saved_test: { ...serializeSavedQuiz(updated, true), can_manage: true } });
   }));
 
   app.delete('/api/saved-club-quizzes/:id', requireAuth, requireRole('faculty', 'hod', 'college_admin'), ah(async (req, res) => {
@@ -8491,6 +8523,7 @@ async function main() {
     const newQuiz = {
       id: newId('cquiz'), college_id: req.user.college_id,
       title: (title && title.trim()) || row.title, description: (description !== undefined ? description : row.description) || '',
+      logo: row.logo || null,
       created_by: req.user.username, created_by_name: req.user.name, created_at: Date.now(),
       questions: row.questions, quiz_code: generateQuizCode(),
       status: 'lobby', current_index: -1, current_started_at: null, between_started_at: null,
