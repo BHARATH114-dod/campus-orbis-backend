@@ -5850,7 +5850,7 @@ async function main() {
     return base;
   }
 
-  const MAX_REJOIN_REQUESTS = 3;
+  const MAX_REJOIN_REQUESTS = 20;
 
   app.get('/api/student/tests/:id', requireAuth, requireRole('student'), ah(async (req, res) => {
     const test = await Tests.findOne({ id: req.params.id, section_id: req.user.section_id, published: { $ne: false } });

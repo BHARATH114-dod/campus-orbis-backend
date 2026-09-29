@@ -45,12 +45,12 @@ function getClientKey(req) {
   return req.ip;
 }
 
-// Login: Only count FAILED login attempts. Keyed by IP + targeted username
+// Login: Only count FAILED login attempts. Keyed by targeted username when present
 // so 60-100 students logging in at the start of a class from the same lab Wi-Fi
 // will never block each other.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 200, // 200 failed attempts per 15 min per username/IP
+  limit: 2000, // 2,000 failed attempts per 15 min
   skipSuccessfulRequests: true, // SUCCESSFUL LOGINS NEVER COUNT AGAINST RATE LIMIT!
   standardHeaders: true,
   legacyHeaders: false,
@@ -59,7 +59,7 @@ const loginLimiter = rateLimit({
     const username = (req.body && typeof req.body.username === 'string')
       ? req.body.username.trim().toLowerCase()
       : '';
-    return `${req.ip}_${username}`;
+    return username ? `login_${username}` : `${req.ip}_anon`;
   },
   handler: jsonLimitHandler,
 });
@@ -67,7 +67,7 @@ const loginLimiter = rateLimit({
 // Password reset / change and OTP send+verify
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 30,
+  limit: 100,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { keyGeneratorIpFallback: false },
@@ -80,7 +80,7 @@ const otpLimiter = rateLimit({
 
 const otpResendLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 20,
+  limit: 50,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { keyGeneratorIpFallback: false },
@@ -93,7 +93,7 @@ const otpResendLimiter = rateLimit({
 
 const passwordResetLimiter = rateLimit({
   windowMs: 30 * 60 * 1000,
-  limit: 40,
+  limit: 100,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { keyGeneratorIpFallback: false },
@@ -105,10 +105,10 @@ const passwordResetLimiter = rateLimit({
 });
 
 // Untrusted code execution (exams and coding practice):
-// Keyed by student token so every student in the lab gets their own 60 runs/min!
+// Keyed by student token so every student in the lab gets their own 300 runs/min!
 const codeExecutionLimiter = rateLimit({
   windowMs: 60 * 1000,
-  limit: 60, // 60 code runs per minute per student
+  limit: 300, // 300 code runs per minute per student
   standardHeaders: true,
   legacyHeaders: false,
   validate: { keyGeneratorIpFallback: false },
@@ -119,7 +119,7 @@ const codeExecutionLimiter = rateLimit({
 // File uploads
 const uploadLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 100,
+  limit: 500,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { keyGeneratorIpFallback: false },
@@ -130,7 +130,7 @@ const uploadLimiter = rateLimit({
 // Messaging
 const messagingLimiter = rateLimit({
   windowMs: 60 * 1000,
-  limit: 300,
+  limit: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { keyGeneratorIpFallback: false },
@@ -140,11 +140,11 @@ const messagingLimiter = rateLimit({
 
 // General API surface:
 // Handles polling, live camera/mic monitoring chunks, heartbeats, autosave, etc.
-// Keyed by user token so each student has their own 5,000 req/min quota.
+// Keyed by user token so each student has their own 20,000 req/min quota.
 // Unauthenticated IP fallback is also high so hundreds of devices on college Wi-Fi never collide.
 const generalApiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  limit: 5000, // 5,000 requests per minute
+  limit: 20000, // 20,000 requests per minute
   standardHeaders: true,
   legacyHeaders: false,
   validate: { keyGeneratorIpFallback: false },

@@ -19,7 +19,7 @@ const crypto = require('crypto');
 
 const OTP_LENGTH = 6;
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const OTP_MAX_VERIFY_ATTEMPTS = 5;
+const OTP_MAX_VERIFY_ATTEMPTS = 20;
 
 function generateOtpCode() {
   // Uniform 0..999999 via rejection sampling on a crypto-random byte range,
