@@ -673,9 +673,10 @@ async function main() {
   await ClubQuizzes.createIndex({ college_id: 1, created_at: -1 });
   await ClubQuizzes.createIndex({ college_id: 1, quiz_code: 1 });
   await ClubQuizParticipants.createIndex({ id: 1 }, { unique: true });
-  // One representative per club per quiz (spec item 10), enforced at the
-  // database level as well as in the /join route.
-  await ClubQuizParticipants.createIndex({ quiz_id: 1, club_id: 1 }, { unique: true });
+  try {
+    await ClubQuizParticipants.dropIndex('quiz_id_1_club_id_1');
+  } catch (e) {}
+  await ClubQuizParticipants.createIndex({ quiz_id: 1, username: 1 }, { unique: true });
   // Root-cause fix: {quiz_id, username} is the EXACT shape of the
   // participant lookup that runs on every single poll of the Live Quiz
   // session endpoint (GET .../session), plus .../answer, .../leaderboard
@@ -1276,12 +1277,14 @@ async function main() {
       if (isAllowed) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Session-Token,x-session-token');
         res.setHeader('Vary', 'Origin');
       }
     }
     if (req.method === 'OPTIONS') {
-      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Session-Token,x-session-token');
       return res.sendStatus(204);
     }
     next();
@@ -4830,18 +4833,31 @@ async function main() {
         return { results, all_passed: false };
       }
       const results = [];
-      let compileError = null; // once code fails to compile once, it fails for every test case
-      for (const tc of testCases) {
-        const expected = String(tc.expected_output || '').trim();
-        if (compileError) {
-          results.push({ input: tc.input || '', expected_output: expected, actual_output: '', error: compileError, passed: false });
-          continue;
+      if (testCases.length > 0) {
+        const firstTc = testCases[0];
+        const expected0 = String(firstTc.expected_output || '').trim();
+        const res0 = await prepared.run(firstTc.input || '').catch(err => ({ error: err?.message || 'Execution timed out' }));
+        const actual0 = (res0.stdout || '').trim();
+        const passed0 = !res0.error && actual0 === expected0;
+        results.push({ input: firstTc.input || '', expected_output: expected0, actual_output: res0.error ? '' : actual0, error: res0.error || null, passed: passed0 });
+        if (res0.isCompileError) {
+          for (let i = 1; i < testCases.length; i++) {
+            results.push({ input: testCases[i].input || '', expected_output: String(testCases[i].expected_output || '').trim(), actual_output: '', error: res0.error, passed: false });
+          }
+          return { results, all_passed: false };
         }
-        const { stdout, error, isCompileError } = await prepared.run(tc.input || '');
-        if (isCompileError) compileError = error;
-        const actual = (stdout || '').trim();
-        const passed = !error && actual === expected;
-        results.push({ input: tc.input || '', expected_output: expected, actual_output: error ? '' : actual, error: error || null, passed });
+        if (testCases.length > 1) {
+          const rest = await Promise.all(
+            testCases.slice(1).map(async (tc) => {
+              const expected = String(tc.expected_output || '').trim();
+              const res = await prepared.run(tc.input || '').catch(err => ({ error: err?.message || 'Execution timed out' }));
+              const actual = (res.stdout || '').trim();
+              const passed = !res.error && actual === expected;
+              return { input: tc.input || '', expected_output: expected, actual_output: res.error ? '' : actual, error: res.error || null, passed };
+            })
+          );
+          results.push(...rest);
+        }
       }
       return { results, all_passed: results.every(r => r.passed) };
     } finally {
@@ -8312,10 +8328,10 @@ async function main() {
     // NEW (spec item 5): each row carries both the participant's chosen
     // display name and their club name, so the leaderboard can show them
     // together without touching the score/ranking logic below.
-    const top = sortedRows.slice(0, limit).map((r, i) => ({ rank: i + 1, club_id: r.club_id, club_name: r.club_name, participant_name: r.display_name || r.name, points: r.total_score }));
+    const top = sortedRows.slice(0, limit).map((r, i) => ({ rank: i + 1, club_id: r.club_id, club_name: r.club_name, participant_name: r.display_name || r.name, logo: r.logo || null, points: r.total_score }));
     const myIndex = sortedRows.findIndex(r => r.club_id === myClubId);
     const mine = (myIndex >= 0 && myIndex >= limit)
-      ? { rank: myIndex + 1, club_id: myClubId, club_name: sortedRows[myIndex].club_name, participant_name: sortedRows[myIndex].display_name || sortedRows[myIndex].name, points: sortedRows[myIndex].total_score }
+      ? { rank: myIndex + 1, club_id: myClubId, club_name: sortedRows[myIndex].club_name, participant_name: sortedRows[myIndex].display_name || sortedRows[myIndex].name, logo: sortedRows[myIndex].logo || null, points: sortedRows[myIndex].total_score }
       : null;
     return { top, mine };
   }
@@ -8373,6 +8389,7 @@ async function main() {
       is_host: isHost, joined: !!participant, my_score: participant ? participant.total_score : null,
       my_club_name: participant ? participant.club_name : null,
       my_display_name: participant ? (participant.display_name || participant.name) : null,
+      my_logo: participant ? (participant.logo || null) : null,
       quiz_code: isHost ? quiz.quiz_code : null
     };
     if (quiz.status === 'lobby' && isHost) {
@@ -8563,48 +8580,66 @@ async function main() {
 
   // A student joins a competition quiz with its code. Spec items 9 & 10:
   //  - Must already belong to a club (any club, one per student per spec
-  //    item 7 — so "their club" is unambiguous).
-  //  - Only one representative per club per quiz. If someone from their
-  //    club already joined, show who, and that student's name/club.
+  // Students/Participants join with just the quiz code:
   app.post('/api/competition-quizzes/join', requireAuth, requireRole('hod', 'faculty', 'student'), ah(async (req, res) => {
     const code = String(req.body?.code || '').trim().toUpperCase();
     if (!code) return res.status(400).json({ error: 'Enter a quiz code.' });
-    // NEW (spec item 3): the display name the participant wants shown for
-    // this quiz only — never touches their account name. Required and
-    // validated non-empty, same as every other join field.
-    const displayName = String(req.body?.display_name || '').trim();
-    if (!displayName) return res.status(400).json({ error: 'Enter the name you want displayed for this quiz.' });
-    if (displayName.length > 60) return res.status(400).json({ error: 'Display name is too long (60 characters max).' });
+    const displayName = String(req.body?.display_name || '').trim() || req.user.name;
     const quiz = await ClubQuizzes.findOne({ college_id: req.user.college_id, quiz_code: code });
     if (!quiz) return res.status(404).json({ error: 'That code did not match any quiz.' });
     if (quiz.status === 'finished') return res.status(400).json({ error: 'This quiz has already ended.' });
 
     const myClub = await Clubs.findOne({ college_id: req.user.college_id, member_usernames: req.user.username });
-    if (!myClub) {
-      return res.status(403).json({ error: 'You must be a member of a club to participate in this quiz.' });
-    }
+    const defaultTeamName = myClub ? myClub.name : `${displayName}'s Team`;
+    const clubId = myClub ? myClub.id : `ind_${req.user.username}`;
 
-    const existing = await ClubQuizParticipants.findOne({ quiz_id: quiz.id, club_id: myClub.id });
-    if (existing && existing.username !== req.user.username) {
-      return res.status(409).json({
-        error: `${existing.display_name || existing.name} has already joined this quiz on behalf of ${myClub.name}.`,
-        joined_username: existing.username, joined_name: existing.display_name || existing.name, club_name: myClub.name
-      });
-    }
+    const existing = await ClubQuizParticipants.findOne({ quiz_id: quiz.id, username: req.user.username });
     if (!existing) {
       await ClubQuizParticipants.insertOne({
-        id: newId('cqp'), quiz_id: quiz.id, club_id: myClub.id, club_name: myClub.name,
+        id: newId('cqp'), quiz_id: quiz.id, club_id: clubId, club_name: defaultTeamName,
         username: req.user.username, name: req.user.name, display_name: displayName,
-        roll_number: req.user.roll_number || '',
+        roll_number: req.user.roll_number || '', logo: null,
         joined_at: Date.now(), total_score: 0, answers: []
       });
     } else {
-      // Same participant re-joining (e.g. refreshed the join screen) —
-      // let them update the display name they chose, without disturbing
-      // their score/answers so far.
+      // Re-joining or updating name
       await ClubQuizParticipants.updateOne({ id: existing.id }, { $set: { display_name: displayName } });
     }
-    res.json({ ok: true, quiz_id: quiz.id, title: quiz.title, club_name: myClub.name, display_name: displayName });
+    const current = await ClubQuizParticipants.findOne({ quiz_id: quiz.id, username: req.user.username });
+    res.json({ ok: true, quiz_id: quiz.id, title: quiz.title, club_name: current.club_name, display_name: current.display_name });
+  }));
+
+  // Update participant profile (Team Name, Display Name, Logo) in the quiz lobby without exiting:
+  app.patch('/api/competition-quizzes/:id/my-profile', requireAuth, ah(async (req, res) => {
+    const quiz = await ClubQuizzes.findOne({ id: req.params.id });
+    if (!quiz || quiz.college_id !== req.user.college_id) return res.status(404).json({ error: 'Quiz not found.' });
+    const participant = await ClubQuizParticipants.findOne({ quiz_id: quiz.id, username: req.user.username });
+    if (!participant) return res.status(404).json({ error: 'You have not joined this quiz.' });
+    const updates = {};
+    if (typeof req.body?.club_name === 'string' && req.body.club_name.trim()) {
+      updates.club_name = req.body.club_name.trim().slice(0, 60);
+    }
+    if (typeof req.body?.display_name === 'string' && req.body.display_name.trim()) {
+      updates.display_name = req.body.display_name.trim().slice(0, 60);
+    }
+    if (req.body?.logo !== undefined) {
+      updates.logo = req.body.logo ? String(req.body.logo).trim() : null;
+    }
+    if (Object.keys(updates).length > 0) {
+      await ClubQuizParticipants.updateOne({ id: participant.id }, { $set: updates });
+    }
+    res.json({ ok: true, ...updates });
+  }));
+
+  // Host can kick a participant from the quiz lobby:
+  app.post('/api/competition-quizzes/:id/kick', requireAuth, ah(async (req, res) => {
+    const quiz = await ClubQuizzes.findOne({ id: req.params.id });
+    if (!quiz || quiz.college_id !== req.user.college_id) return res.status(404).json({ error: 'Quiz not found.' });
+    if (!canManageClubQuiz(req.user, quiz)) return res.status(403).json({ error: 'Only the quiz host can kick participants.' });
+    const targetUsername = String(req.body?.username || '').trim();
+    if (!targetUsername) return res.status(400).json({ error: 'Target username is required.' });
+    await ClubQuizParticipants.deleteOne({ quiz_id: quiz.id, username: targetUsername });
+    res.json({ ok: true, kicked: targetUsername });
   }));
 
   // Host starts the quiz — moves it out of the lobby into question 1, and
@@ -8698,12 +8733,12 @@ async function main() {
     if (isHost) {
       res.json({
         participants: rows.map(r => ({
-          name: r.name, display_name: r.display_name || r.name, username: r.username, roll_number: r.roll_number || '',
-          club_name: r.club_name, joined: true, joined_at: r.joined_at
+          id: r.id, name: r.name, display_name: r.display_name || r.name, username: r.username, roll_number: r.roll_number || '',
+          club_name: r.club_name, logo: r.logo || null, joined: true, joined_at: r.joined_at
         }))
       });
     } else {
-      res.json({ participants: rows.map(r => ({ name: r.display_name || r.name, club_name: r.club_name, joined: true })) });
+      res.json({ participants: rows.map(r => ({ id: r.id, name: r.display_name || r.name, club_name: r.club_name, logo: r.logo || null, joined: true })) });
     }
   }));
 

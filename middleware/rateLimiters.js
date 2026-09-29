@@ -36,6 +36,9 @@ function getClientKey(req) {
   if (req.headers && req.headers['x-session-token']) {
     return `sess_${req.headers['x-session-token']}`;
   }
+  if (req.query && req.query.token) {
+    return `query_${req.query.token}`;
+  }
   if (req.user && req.user.username) {
     return `user_${req.user.username}`;
   }
